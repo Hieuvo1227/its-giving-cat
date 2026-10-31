@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Cat Meme Cam for Google Meet",
+  "version": "1.0.0",
+  "description": "Tự động biến camera Google Meet thành Cat Meme tương tác theo thời gian thực",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://meet.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cat Meme Cam"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "inject.js",
+        "assets_data.js",
+        "assets/*",
+        "detectors/*"
+      ],
+      "matches": ["https://meet.google.com/*"]
+    }
+  ]
+}

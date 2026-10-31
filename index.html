@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meme Tracker</title>
+  <meta name="description" content="Ứng dụng nhận diện cử chỉ tay và biểu cảm khuôn mặt qua MediaPipe để tự động đổi ảnh Cat Meme theo thời gian thực">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Google MediaPipe CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- Background Glow Effects -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">🐱</div>
+      <div class="brand-text">
+        <h1>MEME TRACKER <span class="badge-ai">AI VISION</span></h1>
+        <p class="subtitle">MediaPipe Hand & Face Landmarker • OpenCV Dual-Window Style</p>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="stat-pill" id="fpsPill">
+        <span class="dot live-dot"></span>
+        <span class="stat-label">FPS:</span>
+        <span class="stat-value" id="fpsVal">0</span>
+      </div>
+
+      <div class="stat-pill" id="statusPill">
+        <span class="stat-label">STATUS:</span>
+        <span class="stat-value text-accent" id="statusText">Khởi động...</span>
+      </div>
+
+      <div class="stat-pill" id="calibPill" title="Trạng thái hiệu chuẩn khuôn mặt cá nhân">
+        <span class="dot calib-dot" id="calibDot"></span>
+        <span class="stat-label">CALIB:</span>
+        <span class="stat-value text-muted" id="calibText">Generic</span>
+      </div>
+
+      <button id="calibrateBtn" class="btn-pack" title="Hiệu chuẩn khuôn mặt bình thường (3s) để nhận diện Z-score chuẩn xác nhất">
+        <span class="icon">🎯</span> Hiệu chuẩn (3s)
+      </button>
+
+      <button id="toggleAudioBtn" class="btn-icon" title="Bật/Tắt âm thanh tương tác">
+        <span id="audioIcon">🔊</span>
+      </button>
+
+      <button id="cameraToggleBtn" class="btn-primary">
+        <span class="icon">📷</span> Bật Camera
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dual Window Grid -->
+  <main class="main-container">
+    <!-- Window 1: Camera Feed (cv2.VideoCapture) -->
+    <section class="window-card" id="cameraWindow">
+      <div class="window-header">
+        <div class="window-title">
+          <span class="window-dot red"></span>
+          <span class="window-dot yellow"></span>
+          <span class="window-dot green"></span>
+          <span class="window-name">Camera (cv2.imshow)</span>
+        </div>
+        <div class="window-actions">
+          <label class="toggle-control" title="Hiển thị khung xương điểm mốc">
+            <input type="checkbox" id="showLandmarksToggle" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Landmarks</span>
+          </label>
+          <label class="toggle-control" title="Lật gương camera">
+            <input type="checkbox" id="mirrorToggle" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Gương</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="feed-viewport">
+        <video id="webcam" playsinline autoplay muted></video>
+        <canvas id="overlayCanvas"></canvas>
+
+        <div class="hud-overlay">
+          <div class="hud-tag" id="hudStateTag">
+            <span class="tag-pulse"></span>
+            <span id="hudStateLabel">Chờ camera...</span>
+          </div>
+          <div class="hud-metrics">
+            <div class="metric-item">
+              <span class="metric-name">EAR (Mắt):</span>
+              <span class="metric-val" id="metricEar">0.00</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-name">MAR (Miệng):</span>
+              <span class="metric-val" id="metricMar">0.00</span>
+              <span class="metric-z" id="metricMarZ">(Z: +0.0s)</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-name">Turn (Quay mặt):</span>
+              <span class="metric-val" id="metricTurn">0.00</span>
+              <span class="metric-z" id="metricTurnZ">(Z: +0.0s)</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-name">Face Width:</span>
+              <span class="metric-val" id="metricFaceSize">0.00</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-name">Fingers:</span>
+              <span class="metric-val" id="metricFingers">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calibration Modal / Overlay -->
+        <div class="calib-overlay hidden" id="calibOverlay">
+          <div class="calib-card">
+            <div class="calib-ring-container">
+              <svg class="calib-ring" viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="42"></circle>
+                <circle class="ring-bar" id="calibRingBar" cx="50" cy="50" r="42"></circle>
+              </svg>
+              <span class="calib-countdown" id="calibCountdown">3.0s</span>
+            </div>
+            <h3 class="calib-title">ĐANG HIỆU CHUẨN KHUÔN MẶT CÁ NHÂN</h3>
+            <p class="calib-desc" id="calibInstruction">Ngồi thẳng thoải mái, nhìn vào camera và giữ khuôn mặt tự nhiên (không cười, không nói chuyện).</p>
+            <div class="calib-meta">
+              <span class="calib-samples" id="calibSamples">0 frames</span>
+              <button id="cancelCalibBtn" class="btn-sm btn-ghost">Hủy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="camera-fallback" id="cameraFallback">
+          <div class="fallback-content">
+            <div class="fallback-icon">📹</div>
+            <h3>Chưa kết nối Camera</h3>
+            <p>Nhấn nút "Bật Camera" ở trên để cấp quyền webcam, hoặc sử dụng bảng điều khiển giả lập bên dưới.</p>
+            <button id="startCamBtnFallback" class="btn-primary">Bắt đầu theo dõi</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Telemetry Info Bar -->
+      <div class="window-footer">
+        <div class="telemetry-grid">
+          <div class="tele-item" id="indThumb">
+            <span class="finger-dot"></span> Cái
+          </div>
+          <div class="tele-item" id="indIndex">
+            <span class="finger-dot"></span> Trỏ
+          </div>
+          <div class="tele-item" id="indMiddle">
+            <span class="finger-dot"></span> Giữa
+          </div>
+          <div class="tele-item" id="indRing">
+            <span class="finger-dot"></span> Áp út
+          </div>
+          <div class="tele-item" id="indPinky">
+            <span class="finger-dot"></span> Út
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Window 2: Meme Companion Window (cv2.imshow) -->
+    <section class="window-card" id="monkeWindow">
+      <div class="window-header">
+        <div class="window-title">
+          <span class="window-dot red"></span>
+          <span class="window-dot yellow"></span>
+          <span class="window-dot green"></span>
+          <span class="window-name">Meme Companion (cv2.imshow)</span>
+        </div>
+        <div class="window-badge" id="monkeStateCode">
+          STATE: CAT_POLITE
+        </div>
+      </div>
+
+      <div class="monke-viewport">
+        <!-- Main Meme Container with transition animation -->
+        <div class="meme-stage" id="memeStage">
+          <img id="monkeImg" src="assets/cat_polite.png" alt="Cat Meme">
+          <div class="meme-flash" id="memeFlash"></div>
+        </div>
+
+        <!-- Debounce / Anti-Jitter Status Bar -->
+        <div class="anti-jitter-bar">
+          <div class="jitter-track">
+            <div class="jitter-fill" id="jitterFill" style="width: 100%;"></div>
+          </div>
+          <span class="jitter-text" id="jitterText">Ổn định: 5/5 khung hình (Locked)</span>
+        </div>
+
+        <!-- Gesture Info Banner -->
+        <div class="state-banner" id="stateBanner">
+          <div class="banner-title" id="bannerTitle">Mèo cười mỉm lịch sự (Nhìn thẳng)</div>
+          <div class="banner-desc" id="bannerDesc">Nhìn thẳng, miệng khép bình thường, không cử động tay.</div>
+        </div>
+      </div>
+
+      <!-- Meme States Quick Switcher & Preview -->
+      <div class="window-footer meme-strip-container">
+        <div class="strip-header">
+          <span>Bộ sưu tập Meme (Bấm để kích hoạt thử nghiệm):</span>
+        </div>
+        <div class="meme-strip" id="memeStrip">
+          <!-- Dynamically generated buttons -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Technical Logic Reference Cheatsheet for Cat Memes -->
+  <section class="logic-cheatsheet">
+    <div class="cheatsheet-header">
+      <h2>📐 Bảng Quy Tắc Nhận Diện Cử Chỉ Mèo Meme (Logic Landmarks)</h2>
+      <button id="toggleLogicBtn" class="btn-sm">Thu gọn / Mở rộng</button>
+    </div>
+    <div class="table-responsive" id="logicTableContainer">
+      <table class="logic-table">
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Hành Động Của Bạn</th>
+            <th>Logic Toán Học Trên Landmarks</th>
+            <th>Mèo Meme Tương Ứng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-state="neutral">
+            <td><code>01</code></td>
+            <td><strong>Nhìn thẳng tự nhiên (Trạng thái nghỉ)</strong></td>
+            <td>Mắt mở bình thường, miệng khép tự nhiên, baseline Z-score &lt; ngưỡng kích hoạt.</td>
+            <td>🌿 Webcam thật tự nhiên (Tắt đè meme)</td>
+          </tr>
+          <tr data-state="huh">
+            <td><code>02</code></td>
+            <td><strong>Há to miệng ngơ ngác</strong></td>
+            <td>Z-score MAR &ge; +3.8&sigma; (vượt 3.8 lần độ lệch chuẩn nghỉ của bạn) VÀ MAR &ge; 0.16.</td>
+            <td>🌀 Mèo HUH?! (Não đang buffering)</td>
+          </tr>
+          <tr data-state="thumbs_up">
+            <td><code>03</code></td>
+            <td><strong>Giơ tay làm hình LIKE 👍</strong></td>
+            <td>4 ngón tay gập chặt, ngón cái duỗi thẳng vươn cao vượt qua khớp ngón trỏ &gt; 0.35&times;bàn tay.</td>
+            <td>👍 Mèo khóc giơ ngón tay LIKE kiên cường</td>
+          </tr>
+          <tr data-state="shh">
+            <td><code>04</code></td>
+            <td><strong>Đặt 1 ngón trỏ lên môi/mũi</strong></td>
+            <td>Chỉ ngón trỏ duỗi, đầu ngón trỏ (8) cách môi (13) hoặc mũi (1) &lt; 0.28&times;FaceWidth.</td>
+            <td>🤫 Mèo suỵt im lặng</td>
+          </tr>
+          <tr data-state="thinking">
+            <td><code>05</code></td>
+            <td><strong>Chống tay dưới cằm</strong></td>
+            <td>Bàn tay nâng dưới cằm (152), khoảng cách &lt; 0.32&times;FaceWidth và nằm dưới hàm.</td>
+            <td>🤔 Mèo chống cằm suy ngẫm triết lý</td>
+          </tr>
+          <tr data-state="fist">
+            <td><code>06</code></td>
+            <td><strong>Nắm chặt bàn tay (Nắm đấm)</strong></td>
+            <td>Cả 4 ngón đều gập chặt, ngón cái co lại ôm sát, không chĩa lên trời như LIKE.</td>
+            <td>😼 Mèo giơ nắm đấm khệnh khạng</td>
+          </tr>
+          <tr data-state="pointing">
+            <td><code>07</code></td>
+            <td><strong>Chỉ 1 ngón trỏ về phía trước/trên</strong></td>
+            <td>Chỉ ngón trỏ duỗi vươn cao, đầu ngón trỏ cách xa vùng môi &gt; 0.30&times;FaceWidth.</td>
+            <td>👉👈 Mèo chỉ ngón tay ngại ngùng</td>
+          </tr>
+          <tr data-state="head_pat">
+            <td><code>08</code></td>
+            <td><strong>Đặt tay lên đỉnh đầu / trán</strong></td>
+            <td>Bàn tay đặt sát đỉnh trán (10), khoảng cách &lt; 0.40&times;FaceWidth và căn thẳng đỉnh đầu.</td>
+            <td>😨 Mèo hoảng hốt bối rối cắn tay</td>
+          </tr>
+          <tr data-state="close_up">
+            <td><code>09</code></td>
+            <td><strong>Ghé sát mặt vào camera</strong></td>
+            <td>FaceWidth hiện tại tăng &gt; 40% so với kích thước khuôn mặt nghỉ đã hiệu chuẩn.</td>
+            <td>👁️ Mèo dí sát mặt cười trừng trừng</td>
+          </tr>
+          <tr data-state="side_look">
+            <td><code>10</code></td>
+            <td><strong>Nghiêng đầu / Liếc mắt</strong></td>
+            <td>Z-score quay mặt |Z_turn| &ge; +3.5&sigma; hoặc góc nghiêng trục mắt |Z_tilt| &ge; +3.2&sigma;.</td>
+            <td>🤨 Mèo The Rock nhướn mày dò xét</td>
+          </tr>
+          <tr data-state="heart">
+            <td><code>11</code></td>
+            <td><strong>Tay làm thành hình trái tim 🫶</strong></td>
+            <td>Hai ngón cái gần nhau &lt; 0.40&times;FaceWidth và hai ngón trỏ gần nhau &lt; 0.40&times;FaceWidth tạo vòm cong.</td>
+            <td>💖 Mèo má hồng ngập tràn yêu thương</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

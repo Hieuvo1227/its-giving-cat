@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cat Meme Cam</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1218;
+      color: #f0f3f8;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .icon {
+      font-size: 26px;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #00f2fe;
+    }
+    p.sub {
+      font-size: 11px;
+      color: #8b95a5;
+    }
+    .status-box {
+      margin: 12px 0;
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+    .btn-meet {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #0b1320;
+      font-weight: 700;
+      padding: 10px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 13px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 14px rgba(0, 242, 254, 0.3);
+      cursor: pointer;
+      border: none;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 6px;
+      font-size: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .item:hover {
+      background: rgba(0, 242, 254, 0.2);
+      border-color: #00f2fe;
+      transform: translateY(-1px);
+    }
+    .footer {
+      font-size: 11px;
+      color: #8b95a5;
+      line-height: 1.4;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="icon">🐱</div>
+    <div>
+      <h1>Cat Meme Cam</h1>
+      <p class="sub">Biến webcam Meet thành Cat Meme</p>
+    </div>
+  </div>
+
+  <div class="status-box">
+    🟢 <strong>Đã sẵn sàng hoạt động</strong>
+  </div>
+
+  <button id="openMeetBtn" class="btn-meet">
+    🚀 Vào phòng Google Meet ngay
+  </button>
+
+  <p style="font-size: 11px; color: #8b95a5; margin-bottom: 6px;">Chọn biểu cảm nhanh:</p>
+  <div class="grid" style="grid-template-columns: repeat(6, 1fr);">
+    <div class="item" data-state="neutral" title="Nhìn thẳng tự nhiên (Webcam thật - Tắt đè)">🌿</div>
+    <div class="item" data-state="huh" title="Mèo HUH?! há miệng">🌀</div>
+    <div class="item" data-state="thumbs_up" title="Mèo khóc giơ LIKE">👍</div>
+    <div class="item" data-state="heart" title="Mèo má hồng (Tay làm hình trái tim 🫶)">💖</div>
+    <div class="item" data-state="shh" title="Mèo suỵt im lặng">🤫</div>
+    <div class="item" data-state="thinking" title="Mèo chống cằm">🤔</div>
+    <div class="item" data-state="fist" title="Mèo giơ nắm đấm">😼</div>
+    <div class="item" data-state="pointing" title="Mèo chỉ tay ngại ngùng">👉</div>
+    <div class="item" data-state="head_pat" title="Mèo xoa đầu bối rối">😨</div>
+    <div class="item" data-state="close_up" title="Mèo dí sát mặt">👁️</div>
+    <div class="item" data-state="side_look" title="Mèo nhướn mày The Rock">🤨</div>
+  </div>
+
+  <div class="footer">
+    Khi vào Google Meet, thanh điều khiển nổi sẽ xuất hiện ở góc dưới bên trái màn hình.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
